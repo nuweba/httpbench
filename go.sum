@@ -1,0 +1,8 @@
+github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
+github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
+github.com/nuweba/counter v1.0.0 h1:vGibN8BQF+ajA2TmLcWLqPATUr0GUMyuDrqz1rchumk=
+github.com/nuweba/counter v1.0.0/go.mod h1:UNYYJjH1CDokWN/m+WYy40uM1UfPTfeV3h/Xuq1MfTc=
+github.com/nuweba/semaphore v1.0.0 h1:T1ma4WYKZDX4Dn9HRMkqkx+NiURmQb5lRmKihptS+VI=
+github.com/nuweba/semaphore v1.0.0/go.mod h1:WopuZYv2JgV+ZVmeawUwYAw7rnkji/DHqwYj0PXQ/uE=
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

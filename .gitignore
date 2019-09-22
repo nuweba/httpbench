@@ -1,0 +1,8 @@
+# Distribution / packaging
+result_*
+.idea
+
+# Serverless directories
+.serverless
+
+*.DS_Store

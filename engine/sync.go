@@ -9,18 +9,19 @@ import (
 )
 
 type SyncConfig struct {
-	done             *sync.WaitGroup
-	result           chan *TraceResult
-	concurrencyLimit uint64
-	syncedConcurrent uint64
-	reqCounter       *counter.Counter
-	Concurrency      *concurrency.Manager
-	maxRequests      uint64
-	durationTimer    *time.Timer
-	maxDuration      time.Duration
-	reqDelay         time.Duration
-	waitReq          bool
-	traceSync        *syncedtrace.SyncConfig
+	syncedConcurrentLock sync.RWMutex
+	done                 *sync.WaitGroup
+	result               chan *TraceResult
+	concurrencyLimit     uint64
+	syncedConcurrent     uint64
+	reqCounter           *counter.Counter
+	Concurrency          *concurrency.Manager
+	maxRequests          uint64
+	durationTimer        *time.Timer
+	maxDuration          time.Duration
+	reqDelay             time.Duration
+	waitReq              bool
+	traceSync            *syncedtrace.SyncConfig
 }
 
 //concurrencyLimit == 0 for unlimited concurrency
@@ -33,15 +34,16 @@ func NewSyncConfig(hook syncedtrace.TraceHookType, concurrencyLimit uint64, dura
 	}
 
 	sc := &SyncConfig{
-		done:             &sync.WaitGroup{},
-		result:           result,
-		concurrencyLimit: concurrencyLimit,
-		Concurrency:      concurrency.New(concurrencyLimit),
-		reqCounter:       new(counter.Counter),
-		durationTimer:    time.NewTimer(duration),
-		maxDuration:      duration,
-		waitReq:          waitReq,
-		traceSync:        traceSync,
+		done:                 &sync.WaitGroup{},
+		result:               result,
+		concurrencyLimit:     concurrencyLimit,
+		Concurrency:          concurrency.New(concurrencyLimit),
+		reqCounter:           new(counter.Counter),
+		durationTimer:        time.NewTimer(duration),
+		maxDuration:          duration,
+		waitReq:              waitReq,
+		traceSync:            traceSync,
+		syncedConcurrentLock: sync.RWMutex{},
 	}
 	if sc.maxRequests = uint64(sc.maxDuration.Nanoseconds()); sc.reqDelay != time.Duration(0) {
 		sc.maxRequests = uint64(sc.maxDuration.Nanoseconds() / sc.reqDelay.Nanoseconds())
@@ -59,7 +61,12 @@ func (sc *SyncConfig) Duration() <-chan time.Time {
 }
 
 func (sc *SyncConfig) SetSyncedConcurrent(syncedCount uint64) {
+	if !sc.Concurrency.IsConcurrencyUnlimited() && syncedCount > sc.concurrencyLimit {
+		panic("synced concurrent cannot be bigger then the concurrency limit")
+	}
+	sc.syncedConcurrentLock.Lock()
 	sc.syncedConcurrent = syncedCount
+	sc.syncedConcurrentLock.Unlock()
 }
 
 func (sc *SyncConfig) SetReqDelay(reqDelay time.Duration) {

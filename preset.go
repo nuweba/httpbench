@@ -190,7 +190,7 @@ func (p *Preset) ConcurrentForTimeGraph(concurrentGraph ConcurrentGraph) *Preset
 			}
 
 			syncConfig.Concurrency.ConcurrencySem.Resize(point.Concurrent)
-
+			syncConfig.SetSyncedConcurrent(point.Concurrent)
 		}
 	}()
 

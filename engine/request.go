@@ -57,6 +57,7 @@ func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *
 }
 
 func HttpBench(sc *SyncConfig, reqDelay time.Duration, newReq func(uniqueId string) (*http.Request, error)) {
+	sc.syncedConcurrentLock.RLock()
 	if !sc.Concurrency.IsConcurrencyUnlimited() && sc.syncedConcurrent > sc.concurrencyLimit {
 		panic("synced concurrent cannot be bigger then the concurrency limit")
 	}
@@ -68,11 +69,13 @@ func HttpBench(sc *SyncConfig, reqDelay time.Duration, newReq func(uniqueId stri
 	if sc.syncedConcurrent == 0 {
 		panic("synced concurrent is not set! need to call SetSyncedConcurrent")
 	}
+	sc.syncedConcurrentLock.RUnlock()
 
 	sc.SetReqDelay(reqDelay)
 
 outer:
 	for !sc.MaxReqReached() {
+		sc.syncedConcurrentLock.RLock()
 		for i := uint64(0); i < sc.syncedConcurrent && !sc.MaxReqReached(); i++ {
 			sc.Concurrency.AcquireConcurrencySlot()
 			sc.traceSync.ReadyWg.Add(1)
@@ -93,6 +96,7 @@ outer:
 			sc.traceSync.Cond.Broadcast()
 			sc.traceSync.Cond.L.Unlock()
 		}
+		sc.syncedConcurrentLock.RUnlock()
 
 		if sc.waitReq {
 			sc.WaitAll()

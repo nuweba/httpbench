@@ -175,7 +175,7 @@ func (p *Preset) RequestsForTimeGraph(hitsGraph HitsGraph) *PresetResult {
 Unlike RequestsForTimeGraph, in this preset Time represents the absolute time in which the concurrent amount changes,
 and not the time difference between one point and the next.
 */
-func (p *Preset) ConcurrentForTimeGraph(concurrentGraph ConcurrentGraph) *PresetResult {
+func (p *Preset) ConcurrentForTimeGraph(reqDelay time.Duration, concurrentGraph ConcurrentGraph) *PresetResult {
 	start := time.Now()
 	graphLen := len(concurrentGraph)
 	syncConfig := engine.NewSyncConfig(p.Hook, concurrentGraph[0].Concurrent, concurrentGraph[graphLen-1].Time, false, p.ResultCh)
@@ -194,7 +194,7 @@ func (p *Preset) ConcurrentForTimeGraph(concurrentGraph ConcurrentGraph) *Preset
 		}
 	}()
 
-	engine.HttpBench(syncConfig, 0, p.NewRequest)
+	engine.HttpBench(syncConfig, reqDelay, p.NewRequest)
 	syncConfig.WaitAll()
 
 	close(p.ResultCh)

@@ -35,6 +35,16 @@ func updateLocalAddrToPort(th *syncedtrace.Trace, fd int) error {
 
 }
 
+func wrapError(old, new error) error {
+	if old == nil {
+		return new
+	}
+	if new == nil {
+		return old
+	}
+	return fmt.Errorf("%s;; previous error: %s", new.Error(), old.Error())
+}
+
 func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *SyncConfig) {
 	defer syncConfig.done.Done()
 
@@ -84,7 +94,7 @@ func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *
 	resp, err := client.Do(req)
 
 	if duplicatedSocket != 0 {
-		err = updateLocalAddrToPort(th, duplicatedSocket)
+		err = wrapError(err, updateLocalAddrToPort(th, duplicatedSocket))
 		syscall.Close(duplicatedSocket)
 	}
 

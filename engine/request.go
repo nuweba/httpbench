@@ -2,12 +2,48 @@ package engine
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/nuweba/httpbench/syncedtrace"
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"syscall"
 	"time"
 )
+
+func updateLocalAddrToPort(th *syncedtrace.Trace, fd int) error {
+	if th.LocalAddr != "" {
+		return nil
+	}
+
+	sa, err := syscall.Getsockname(fd)
+	if err != nil {
+		return err
+	}
+
+	switch t := sa.(type) {
+	case *syscall.SockaddrInet4:
+		th.LocalAddr = fmt.Sprintf(":%d", t.Port)
+		return nil
+	case *syscall.SockaddrInet6:
+		th.LocalAddr = fmt.Sprintf(":%d", t.Port)
+		return nil
+	default:
+		return errors.New("unknown socket addr struct type")
+	}
+
+}
+
+func wrapError(old, new error) error {
+	if old == nil {
+		return new
+	}
+	if new == nil {
+		return old
+	}
+	return fmt.Errorf("%s;; previous error: %s", new.Error(), old.Error())
+}
 
 func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *SyncConfig) {
 	defer syncConfig.done.Done()
@@ -24,9 +60,22 @@ func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *
 	traceHooks := syncedtrace.GetTraceHooks(th)
 	req = req.WithContext(httptrace.WithClientTrace(context.Background(), traceHooks))
 
+	var duplicatedSocket int
 	//creating new client and new transport to eliminate tcp reuse
 	client := &http.Client{Transport: &http.Transport{
 		DialContext: (&net.Dialer{
+			Control: func(network, address string, c syscall.RawConn) error {
+				var err error
+				if ctrlErr := c.Control(func(fd uintptr) {
+					if duplicatedSocket != 0 {
+						return
+					}
+					duplicatedSocket, err = syscall.Dup(int(fd))
+				}); ctrlErr != nil {
+					return ctrlErr
+				}
+				return err
+			},
 			Timeout:   20 * time.Second,
 			KeepAlive: 20 * time.Second,
 		}).DialContext,
@@ -43,6 +92,11 @@ func doRequest(newReq func(uniqueId string) (*http.Request, error), syncConfig *
 
 	syncConfig.Concurrency.AddConcurrent()
 	resp, err := client.Do(req)
+
+	if duplicatedSocket != 0 {
+		err = wrapError(err, updateLocalAddrToPort(th, duplicatedSocket))
+		syscall.Close(duplicatedSocket)
+	}
 
 	result := NewTraceResult(th, resp)
 	result.Err = NewTraceResultError(err)
